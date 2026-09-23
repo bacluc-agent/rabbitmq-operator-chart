@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: rabbitmq-operator
+    app.kubernetes.io/name: rabbitmq-cluster-operator
+    app.kubernetes.io/part-of: rabbitmq
+  name: rabbitmq-cluster-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq-cluster-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: rabbitmq-operator
+        app.kubernetes.io/name: rabbitmq-cluster-operator
+        app.kubernetes.io/part-of: rabbitmq
+    spec:
+      {{- if .Values.clusterOperator.podSecurityContext.enabled }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
+      containers:
+      - command:
+        - /manager
+        env:
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DEFAULT_RABBITMQ_IMAGE
+          value: "{{ .Values.rabbitmqImage.registry }}/{{ .Values.rabbitmqImage.repository }}:{{ .Values.rabbitmqImage.version }}"
+        - name: DEFAULT_USER_UPDATER_IMAGE
+          value: "{{ .Values.credentialUpdaterImage.registry }}/{{ .Values.credentialUpdaterImage.repository }}"
+        - name: ENABLE_WEBHOOKS
+          value: "false"
+        image: "{{ .Values.clusterOperator.image.registry }}/{{ .Values.clusterOperator.image.repository }}:{{ .Chart.AppVersion }}"
+        name: operator
+        {{- if .Values.clusterOperator.containerSecurityContext.enabled }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        {{- end }}
+        ports:
+        - containerPort: 9782
+          name: metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 500Mi
+          requests:
+            cpu: 200m
+            memory: 500Mi
+      serviceAccountName: rabbitmq-cluster-operator
+      terminationGracePeriodSeconds: 10
