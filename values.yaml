@@ -21,3 +21,4 @@ rabbitmqImage:
 credentialUpdaterImage:
   registry: docker.io
   repository: bitnamilegacy/rmq-default-credential-updater
+useCertManager: true
