@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: rabbitmq-cluster-operator
     app.kubernetes.io/part-of: rabbitmq
     servicebinding.io/controller: 'true'
-  name: rabbitmq-cluster-service-binding-role
+  name: {{ .Release.Name }}-rabbitmq-cluster-service-binding-role
 rules:
 - apiGroups:
   - rabbitmq.com

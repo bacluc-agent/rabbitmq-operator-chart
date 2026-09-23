@@ -9,42 +9,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Start Minikube
         uses: medyagh/setup-minikube@latest
-
       - name: Set up Helm
         uses: azure/setup-helm@v4
-
       - name: Lint
         run: helm lint .
-
       - name: Template default
         run: helm template test .
-
       - name: Install CRD chart
-        run: |
-          helm pull oci://ghcr.io/bacluc-agent/rabbitmq-crd-chart/rabbitmq-crd --version 0.0.1 --untar --destination /tmp
-          helm install crd /tmp/rabbitmq-crd --wait --timeout 5m --create-namespace --namespace rabbitmq-system
-
+        run: helm install crds oci://ghcr.io/bacluc-agent/rabbitmq-crd-chart/rabbitmq-crd --version 0.0.1 --wait --timeout 5m
       - name: Install cert-manager
         run: |
           kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
           kubectl wait --for=condition=available deployment/cert-manager -n cert-manager --timeout=300s
           kubectl wait --for=condition=available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
           kubectl wait --for=condition=available deployment/cert-manager-webhook -n cert-manager --timeout=300s
-
       - name: Install chart
         run: helm install test . --wait --timeout 10m --create-namespace --namespace rabbitmq-system
-
       - name: Wait for operators
         run: |
           kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system --timeout=600s
           kubectl wait --for=condition=available deployment/messaging-topology-operator -n rabbitmq-system --timeout=600s
-
       - name: Uninstall chart
         run: helm uninstall test -n rabbitmq-system --wait
-
       - name: Assert CRDs retained
         run: |
           kubectl get crd rabbitmqclusters.rabbitmq.com

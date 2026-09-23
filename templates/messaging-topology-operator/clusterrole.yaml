@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: messaging-topology-manager-role
+  name: {{ .Release.Name }}-messaging-topology-manager-role
 rules:
 - apiGroups:
   - ''
