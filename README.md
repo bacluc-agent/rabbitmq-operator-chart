@@ -1,9 +1,8 @@
 # rabbitmq-operator-chart
 
-Helm chart for the RabbitMQ Cluster Operator and Messaging Topology Operator,
-wrapping the upstream manifests. Requires the CRDs from
-[rabbitmq-crd-chart](https://github.com/bacluc-agent/rabbitmq-crd-chart) and
-cert-manager (the webhook certificate is issued by cert-manager).
+Helm chart for the RabbitMQ Cluster Operator, wrapping the upstream manifests.
+Requires the CRDs from
+[rabbitmq-crd-chart](https://github.com/bacluc-agent/rabbitmq-crd-chart).
 
 ## Usage
 
@@ -15,10 +14,9 @@ helm install operator oci://ghcr.io/bacluc-agent/rabbitmq-operator-chart/rabbitm
 ## Multi-instance support
 
 All namespaced resources are rendered into `.Release.Namespace` and all
-cluster-scoped resources (ClusterRoles, ClusterRoleBindings, the validating
-webhook) are suffixed with `.Release.Name`, so multiple operator instances can
-be installed into one cluster. Upstream recommends running one operator per
-cluster.
+cluster-scoped resources (ClusterRoles, ClusterRoleBindings) are suffixed with
+`.Release.Name`, so multiple operator instances can be installed into one
+cluster. Upstream recommends running one operator per cluster.
 
 ## Release
 
