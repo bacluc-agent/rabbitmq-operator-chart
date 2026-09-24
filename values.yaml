@@ -6,14 +6,6 @@ clusterOperator:
     enabled: false
   containerSecurityContext:
     enabled: false
-msgTopologyOperator:
-  image:
-    registry: docker.io
-    repository: bitnamilegacy/rmq-messaging-topology-operator
-  podSecurityContext:
-    enabled: false
-  containerSecurityContext:
-    enabled: false
 rabbitmqImage:
   registry: docker.io
   repository: bitnamilegacy/rabbitmq
@@ -21,4 +13,3 @@ rabbitmqImage:
 credentialUpdaterImage:
   registry: docker.io
   repository: bitnamilegacy/rmq-default-credential-updater
-useCertManager: true
