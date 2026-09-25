@@ -11,138 +11,103 @@ metadata:
   namespace: {{ $ns }}
 rules:
 - apiGroups:
-  - ''
+    - ""
   resources:
-  - configmaps
+    - configmaps
+    - persistentvolumeclaims
+    - secrets
+    - serviceaccounts
+    - services
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - create
+    - get
+    - list
+    - update
+    - watch
 - apiGroups:
-  - ''
+    - ""
   resources:
-  - endpoints
+    - endpoints
   verbs:
-  - get
-  - list
-  - watch
+    - get
+    - list
+    - watch
 - apiGroups:
-  - ''
+    - ""
   resources:
-  - events
+    - events
   verbs:
-  - create
-  - get
-  - patch
+    - create
+    - get
+    - patch
 - apiGroups:
-  - ''
+    - ""
   resources:
-  - persistentvolumeclaims
+    - pods
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - get
+    - list
+    - update
+    - watch
 - apiGroups:
-  - ''
+    - ""
   resources:
-  - pods
+    - pods/exec
   verbs:
-  - get
-  - list
-  - update
-  - watch
+    - create
 - apiGroups:
-  - ''
+    - apps
   resources:
-  - pods/exec
+    - statefulsets
   verbs:
-  - create
+    - create
+    - delete
+    - get
+    - list
+    - update
+    - watch
 - apiGroups:
-  - ''
+    - discovery.k8s.io
   resources:
-  - secrets
+    - endpointslices
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - get
+    - list
+    - watch
 - apiGroups:
-  - ''
+    - rabbitmq.com
   resources:
-  - serviceaccounts
+    - rabbitmqclusters
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - create
+    - get
+    - list
+    - update
+    - watch
 - apiGroups:
-  - ''
+    - rabbitmq.com
   resources:
-  - services
+    - rabbitmqclusters/finalizers
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - update
 - apiGroups:
-  - apps
+    - rabbitmq.com
   resources:
-  - statefulsets
+    - rabbitmqclusters/status
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
+    - get
+    - patch
+    - update
 - apiGroups:
-  - rabbitmq.com
+    - rbac.authorization.k8s.io
   resources:
-  - rabbitmqclusters
+    - rolebindings
+    - roles
   verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - rabbitmq.com
-  resources:
-  - rabbitmqclusters/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - rabbitmq.com
-  resources:
-  - rabbitmqclusters/status
-  verbs:
-  - get
-  - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - roles
-  verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
+    - create
+    - delete
+    - get
+    - list
+    - update
+    - watch
 {{- end }}
