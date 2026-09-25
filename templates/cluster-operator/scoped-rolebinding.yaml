@@ -1,0 +1,20 @@
+{{- range $ns := (without (splitList "," (include "rabbitmqOperator.scopeNamespaces" .)) "") }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: rabbitmq-operator
+    app.kubernetes.io/name: rabbitmq-cluster-operator
+    app.kubernetes.io/part-of: rabbitmq
+  name: {{ $.Release.Name }}-rabbitmq-cluster-operator-rolebinding
+  namespace: {{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $.Release.Name }}-rabbitmq-cluster-operator-role
+subjects:
+- kind: ServiceAccount
+  name: rabbitmq-cluster-operator
+  namespace: {{ $.Release.Namespace }}
+{{- end }}
