@@ -24,8 +24,8 @@ trap 'rm -rf "$tmpdir"' EXIT
 cd "$repo_root"
 
 app_version="$(yq '.appVersion' Chart.yaml)"
-if [[ -z "$app_version" || "$app_version" == "null" ]]; then
-  echo "error: appVersion missing or empty in Chart.yaml" >&2
+if [[ -z "$app_version" || "$app_version" == "null" || "$(yq '.appVersion | tag' Chart.yaml)" != "!!str" ]]; then
+  echo "error: appVersion missing or not a string in Chart.yaml" >&2
   exit 2
 fi
 
@@ -85,7 +85,11 @@ normalize() {
     kind="$(yq eval-all "select(document_index == $doc_index) | .kind" "$input")"
     name="$(yq eval-all "select(document_index == $doc_index) | .metadata.name" "$input")"
 
-    if [[ "$kind" != "CustomResourceDefinition" && "$kind" != "null" && -n "$kind" && "$name" != "null" && -n "$name" ]]; then
+    if [[ "$kind" != "CustomResourceDefinition" ]]; then
+      if [[ -z "$kind" || "$kind" == "null" || -z "$name" || "$name" == "null" ]]; then
+        echo "error: $side manifest document_index $doc_index has no kind and/or metadata.name; cannot compare it" >&2
+        exit 2
+      fi
       mkdir -p "$out_dir/$kind"
       yq eval-all "select(document_index == $doc_index) | ... comments=\"\" | sort_keys(..) | .. style=\"\"" "$input" > "$out_dir/$kind/$name.yaml"
     fi
@@ -106,7 +110,7 @@ echo "Namespace: rabbitmq-system"
 echo ""
 
 diff_exit=0
-git diff --no-index --find-renames "$tmpdir/upstream" "$tmpdir/chart" || diff_exit=$?
+git -C "$tmpdir" diff --no-index --find-renames upstream chart || diff_exit=$?
 
 if ((diff_exit > 1)); then
   exit 2
