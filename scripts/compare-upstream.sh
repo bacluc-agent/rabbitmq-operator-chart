@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -o errtrace
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -18,6 +19,7 @@ fi
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
+trap 'exit 2' ERR
 
 cd "$repo_root"
 
@@ -27,17 +29,15 @@ if [[ -z "$app_version" || "$app_version" == "null" ]]; then
   exit 2
 fi
 
-registry="$(yq '.clusterOperator.image.registry' values.yaml)"
-repository="$(yq '.clusterOperator.image.repository' values.yaml)"
-
-for field_val in "registry:$registry" "repository:$repository"; do
-  field="${field_val%%:*}"
-  val="${field_val#*:}"
-  if [[ -z "$val" || "$val" == "null" ]]; then
-    echo "error: $field missing or empty in values.yaml" >&2
+for field in registry repository; do
+  val="$(yq ".clusterOperator.image.$field" values.yaml)"
+  if [[ "$(yq ".clusterOperator.image.$field | tag" values.yaml)" != "!!str" || -z "$val" ]]; then
+    echo "error: clusterOperator.image.$field must be a non-empty string in values.yaml" >&2
     exit 2
   fi
 done
+registry="$(yq '.clusterOperator.image.registry' values.yaml)"
+repository="$(yq '.clusterOperator.image.repository' values.yaml)"
 
 expected_image="${registry}/${repository}:${app_version}"
 
@@ -87,7 +87,7 @@ normalize() {
 
     if [[ "$kind" != "CustomResourceDefinition" && "$kind" != "null" && -n "$kind" && "$name" != "null" && -n "$name" ]]; then
       mkdir -p "$out_dir/$kind"
-      yq eval-all "select(document_index == $doc_index) | ... comments=\"\"" "$input" > "$out_dir/$kind/$name.yaml"
+      yq eval-all "select(document_index == $doc_index) | ... comments=\"\" | sort_keys(..) | .. style=\"\"" "$input" > "$out_dir/$kind/$name.yaml"
     fi
 
     (( doc_index++ )) || true
@@ -105,9 +105,10 @@ echo "Release:   rabbitmq"
 echo "Namespace: rabbitmq-system"
 echo ""
 
-set +e
-git diff --no-index --find-renames "$tmpdir/upstream" "$tmpdir/chart"
-diff_exit=$?
-set -e
+diff_exit=0
+git diff --no-index --find-renames "$tmpdir/upstream" "$tmpdir/chart" || diff_exit=$?
 
-exit $diff_exit
+if ((diff_exit > 1)); then
+  exit 2
+fi
+exit "$diff_exit"
