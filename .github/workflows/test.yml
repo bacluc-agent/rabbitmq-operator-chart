@@ -30,6 +30,12 @@ jobs:
         run: helm install crds oci://ghcr.io/bacluc-agent/rabbitmq-crd-chart/rabbitmq-crd --version 0.0.1 --wait --timeout 5m
       - name: Install operators
         run: |
+          set -euo pipefail
+          cleanup() {
+            helm uninstall operator-a -n rabbitmq-system-a --wait >/dev/null 2>&1 || true
+            helm uninstall operator-b -n rabbitmq-system-b --wait >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
           helm install operator-a . --namespace rabbitmq-system-a --create-namespace \
             --wait --timeout 10m -f test/test-value-files/test-operator-env.yaml &
           pid_a=$!
@@ -40,8 +46,10 @@ jobs:
           wait "$pid_a" || sta=$?
           wait "$pid_b" || stb=$?
           if [ "$sta" -ne 0 ] || [ "$stb" -ne 0 ]; then
-            echo "operator install failed (a=$sta b=$stb)"; exit 1
+            echo "operator install failed (a=$sta b=$stb)"
+            exit 1
           fi
+          trap - EXIT
       - name: Wait for operators
         run: |
           kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system-a --timeout=600s

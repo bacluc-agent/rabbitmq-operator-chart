@@ -8,7 +8,11 @@ DNS-1123 labels (<=63 chars). Callers turn the string into a list with:
 */ -}}
 {{- define "rabbitmqOperator.scopeNamespaces" -}}
 {{- $env := default dict .Values.clusterOperator.env -}}
-{{- $raw := toString (get $env "OPERATOR_SCOPE_NAMESPACE") -}}
+{{- $rawValue := get $env "OPERATOR_SCOPE_NAMESPACE" -}}
+{{- if and $rawValue (not (kindIs "string" $rawValue)) -}}
+{{- fail "OPERATOR_SCOPE_NAMESPACE must be a comma-separated string, not a YAML list, map, or other non-string value" -}}
+{{- end -}}
+{{- $raw := default "" $rawValue -}}
 {{- if eq (trim $raw) "" -}}
 {{- "" -}}
 {{- else -}}

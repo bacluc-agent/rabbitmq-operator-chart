@@ -3,12 +3,12 @@ clusterOperator:
     registry: ghcr.io
     repository: rabbitmq/cluster-operator
   env: {}
-    # To limit this operator instance to a set of namespaces (multi-instance mode), set e.g.:
-    # OPERATOR_SCOPE_NAMESPACE: rabbitmq-dev1, rabbitmq-dev2
-    #   - comma-separated, whitespace allowed around commas
-    #   - each namespace must be a DNS-1123 label (<=63 chars, lowercase alphanumeric, '-', '.')
-    #   - no duplicates, no empty entries
-    #   - leave unset/blank for cluster-wide behavior (default)
+  # To limit this operator instance to a set of namespaces (multi-instance mode), set e.g.:
+  # OPERATOR_SCOPE_NAMESPACE: rabbitmq-dev1, rabbitmq-dev2
+  #   - comma-separated, whitespace allowed around commas
+  #   - each namespace must be a DNS-1123 label (<=63 chars, lowercase alphanumeric, '-', '.')
+  #   - no duplicates, no empty entries
+  #   - leave unset/blank for cluster-wide behavior (default)
   podSecurityContext:
     enabled: false
   containerSecurityContext:
