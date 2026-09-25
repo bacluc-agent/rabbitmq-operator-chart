@@ -2,6 +2,8 @@ clusterOperator:
   image:
     registry: ghcr.io
     repository: rabbitmq/cluster-operator
+  env:
+    # OPERATOR_SCOPE_NAMESPACE: rabbitmq-dev1, rabbitmq-dev2
   podSecurityContext:
     enabled: false
   containerSecurityContext:

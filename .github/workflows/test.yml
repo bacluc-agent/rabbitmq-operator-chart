@@ -24,6 +24,24 @@ jobs:
       - name: Wait for operators
         run: |
           kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system --timeout=600s
+      - name: Test all test-value-files
+        run: |
+          failed=false
+          for i in test/test-value-files/*.yaml; do
+            set +e
+            helm upgrade test . --wait --timeout 10m --create-namespace --namespace rabbitmq-system -f $i
+            if [ $? -ne 0 ]; then
+              failed=true
+            fi
+            kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system --timeout=600s
+            set -e
+            if [ $? -ne 0 ]; then
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
       - name: Uninstall chart
         run: helm uninstall test -n rabbitmq-system --wait
       - name: Assert CRDs retained

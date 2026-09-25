@@ -39,6 +39,12 @@ spec:
           value: "{{ .Values.credentialUpdaterImage.registry }}/{{ .Values.credentialUpdaterImage.repository }}"
         - name: ENABLE_WEBHOOKS
           value: "false"
+        {{- if .Values.clusterOperator.env }}
+        {{- range $name, $value := .Values.clusterOperator.env }}
+        - name: {{ $name }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
         image: "{{ .Values.clusterOperator.image.registry }}/{{ .Values.clusterOperator.image.repository }}:{{ .Chart.AppVersion }}"
         name: operator
         {{- if .Values.clusterOperator.containerSecurityContext.enabled }}
