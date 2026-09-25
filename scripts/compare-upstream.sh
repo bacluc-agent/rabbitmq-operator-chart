@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 set -o errtrace
+trap 'exit 2' ERR
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -19,7 +20,6 @@ fi
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
-trap 'exit 2' ERR
 
 cd "$repo_root"
 
