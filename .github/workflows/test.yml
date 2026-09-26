@@ -67,11 +67,13 @@ jobs:
             fi
           }
           expect_denied() {
-            if kubectl auth can-i list "$RES" -n "$2" --as="$3" >/dev/null 2>&1; then
+            if out="$(kubectl auth can-i list "$RES" -n "$2" --as="$3" 2>&1)"; then
               echo "FAIL expected denied: $1 in $2"; exit 1
-            else
-              echo "OK  denied: $1 in $2"
             fi
+            case "$out" in
+              no | no\ *) echo "OK  denied: $1 in $2" ;;
+              *) echo "FAIL can-i error, not a denial: $out"; exit 1 ;;
+            esac
           }
           expect_allowed operator-a rabbitmq-dev1 "$SA_A"
           expect_allowed operator-a rabbitmq-dev2 "$SA_A"
