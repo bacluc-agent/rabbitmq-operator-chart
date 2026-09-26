@@ -16,7 +16,7 @@ helm install operator oci://ghcr.io/bacluc-agent/rabbitmq-operator-chart/rabbitm
 By default all namespaced resources are rendered into `.Release.Namespace`; with
 the scope value below the operator Role and RoleBinding move to the watched
 namespaces. All cluster-scoped resources (ClusterRoles, ClusterRoleBindings) are
-suffixed with `.Release.Name`, so multiple operator instances can be installed
+prefixed with `.Release.Name`, so multiple operator instances can be installed
 into one cluster. Upstream recommends running one operator per cluster.
 
 For multi-instance operation, limit each operator instance to a dedicated set
