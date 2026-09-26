@@ -41,10 +41,17 @@ spec:
           value: "{{ .Values.credentialUpdaterImage.registry }}/{{ .Values.credentialUpdaterImage.repository }}"
         - name: ENABLE_WEBHOOKS
           value: "false"
+        {{- $scopes := without (splitList "," (include "rabbitmqOperator.scopeNamespaces" .)) "" }}
+        {{- if $scopes }}
+        - name: OPERATOR_SCOPE_NAMESPACE
+          value: {{ join "," $scopes | quote }}
+        {{- end }}
         {{- if .Values.clusterOperator.env }}
         {{- range $name, $value := .Values.clusterOperator.env }}
+        {{- if ne $name "OPERATOR_SCOPE_NAMESPACE" }}
         - name: {{ $name }}
           value: {{ $value | quote }}
+        {{- end }}
         {{- end }}
         {{- end }}
         image: "{{ .Values.clusterOperator.image.registry }}/{{ .Values.clusterOperator.image.repository }}:{{ .Chart.AppVersion }}"

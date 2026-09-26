@@ -15,36 +15,112 @@ jobs:
         uses: azure/setup-helm@v4
       - name: Lint
         run: helm lint .
-      - name: Template default
-        run: helm template test .
+      - name: Template default and fixtures
+        run: |
+          helm template test .
+          helm template operator-a . --namespace rabbitmq-system-a -f test/test-value-files/test-operator-env.yaml >/dev/null
+          helm template operator-b . --namespace rabbitmq-system-b -f test/test-value-files/test-operator-env-b.yaml >/dev/null
+      - name: Create namespaces
+        run: |
+          for ns in rabbitmq-system-a rabbitmq-system-b \
+                     rabbitmq-dev1 rabbitmq-dev2 rabbitmq-dev3 rabbitmq-dev4; do
+            kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
+          done
       - name: Install CRD chart
         run: helm install crds oci://ghcr.io/bacluc-agent/rabbitmq-crd-chart/rabbitmq-crd --version 0.0.1 --wait --timeout 5m
-      - name: Install chart
-        run: helm install test . --wait --timeout 10m --create-namespace --namespace rabbitmq-system
-      - name: Wait for operators
+      - name: Install operators
         run: |
-          kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system --timeout=600s
-      - name: Test all test-value-files
-        run: |
-          failed=false
-          for i in test/test-value-files/*.yaml; do
-            set +e
-            helm upgrade test . --wait --timeout 10m --create-namespace --namespace rabbitmq-system -f $i
-            if [ $? -ne 0 ]; then
-              failed=true
-            fi
-            kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system --timeout=600s
-            set -e
-            if [ $? -ne 0 ]; then
-              failed=true
-            fi
-          done
-          if [ "$failed" = true ]; then
+          set -euo pipefail
+          cleanup() {
+            helm uninstall operator-a -n rabbitmq-system-a --wait >/dev/null 2>&1 || true
+            helm uninstall operator-b -n rabbitmq-system-b --wait >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          helm install operator-a . --namespace rabbitmq-system-a --create-namespace \
+            --wait --timeout 10m -f test/test-value-files/test-operator-env.yaml &
+          pid_a=$!
+          helm install operator-b . --namespace rabbitmq-system-b --create-namespace \
+            --wait --timeout 10m -f test/test-value-files/test-operator-env-b.yaml &
+          pid_b=$!
+          sta=0; stb=0
+          wait "$pid_a" || sta=$?
+          wait "$pid_b" || stb=$?
+          if [ "$sta" -ne 0 ] || [ "$stb" -ne 0 ]; then
+            echo "operator install failed (a=$sta b=$stb)"
             exit 1
           fi
-      - name: Uninstall chart
-        run: helm uninstall test -n rabbitmq-system --wait
-      - name: Assert CRDs retained
+          trap - EXIT
+      - name: Wait for operators
         run: |
+          kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system-a --timeout=600s
+          kubectl wait --for=condition=available deployment/rabbitmq-cluster-operator -n rabbitmq-system-b --timeout=600s
+      - name: Assert scoped RBAC via can-i matrix
+        run: |
+          RES="rabbitmqclusters.rabbitmq.com"
+          SA_A="system:serviceaccount:rabbitmq-system-a:rabbitmq-cluster-operator"
+          SA_B="system:serviceaccount:rabbitmq-system-b:rabbitmq-cluster-operator"
+          expect_allowed() {
+            if kubectl auth can-i list "$RES" -n "$2" --as="$3" >/dev/null 2>&1; then
+              echo "OK  allowed: $1 in $2"
+            else
+              echo "FAIL expected allowed: $1 in $2"; exit 1
+            fi
+          }
+          expect_denied() {
+            if out="$(kubectl auth can-i list "$RES" -n "$2" --as="$3" 2>&1)"; then
+              echo "FAIL expected denied: $1 in $2"; exit 1
+            fi
+            case "$out" in
+              no | no\ *) echo "OK  denied: $1 in $2" ;;
+              *) echo "FAIL can-i error, not a denial: $out"; exit 1 ;;
+            esac
+          }
+          expect_allowed operator-a rabbitmq-dev1 "$SA_A"
+          expect_allowed operator-a rabbitmq-dev2 "$SA_A"
+          expect_allowed operator-b rabbitmq-dev3 "$SA_B"
+          expect_allowed operator-b rabbitmq-dev4 "$SA_B"
+          expect_denied  operator-a rabbitmq-dev3 "$SA_A"
+          expect_denied  operator-a rabbitmq-dev4 "$SA_A"
+          expect_denied  operator-b rabbitmq-dev1 "$SA_B"
+          expect_denied  operator-b rabbitmq-dev2 "$SA_B"
+      - name: Assert exact RBAC and normalized env
+        run: |
+          set -euo pipefail
+          [ "$(kubectl get clusterroles,clusterrolebindings -l app.kubernetes.io/part-of=rabbitmq --no-headers | wc -l)" -eq 0 ]
+          for ns in rabbitmq-dev1 rabbitmq-dev2; do
+            kubectl get role operator-a-rabbitmq-cluster-operator-role -n "$ns" >/dev/null
+            kubectl get role operator-a-rabbitmq-cluster-service-binding-role -n "$ns" >/dev/null
+            [ "$(kubectl get rolebinding operator-a-rabbitmq-cluster-operator-rolebinding -n "$ns" -o jsonpath='{.roleRef.kind}')" = "Role" ]
+            [ "$(kubectl get rolebinding operator-a-rabbitmq-cluster-operator-rolebinding -n "$ns" -o jsonpath='{.subjects[0].namespace}')" = "rabbitmq-system-a" ]
+            [ "$(kubectl get roles,rolebindings -n "$ns" -l app.kubernetes.io/part-of=rabbitmq --no-headers | wc -l)" -eq 3 ]
+            [ "$(kubectl get roles,rolebindings -n "$ns" -l app.kubernetes.io/part-of=rabbitmq --no-headers | grep -c operator-b-)" -eq 0 ]
+          done
+          for ns in rabbitmq-dev3 rabbitmq-dev4; do
+            kubectl get role operator-b-rabbitmq-cluster-operator-role -n "$ns" >/dev/null
+            kubectl get role operator-b-rabbitmq-cluster-service-binding-role -n "$ns" >/dev/null
+            [ "$(kubectl get rolebinding operator-b-rabbitmq-cluster-operator-rolebinding -n "$ns" -o jsonpath='{.roleRef.kind}')" = "Role" ]
+            [ "$(kubectl get rolebinding operator-b-rabbitmq-cluster-operator-rolebinding -n "$ns" -o jsonpath='{.subjects[0].namespace}')" = "rabbitmq-system-b" ]
+            [ "$(kubectl get roles,rolebindings -n "$ns" -l app.kubernetes.io/part-of=rabbitmq --no-headers | wc -l)" -eq 3 ]
+            [ "$(kubectl get roles,rolebindings -n "$ns" -l app.kubernetes.io/part-of=rabbitmq --no-headers | grep -c operator-a-)" -eq 0 ]
+          done
+          kubectl get role rabbitmq-cluster-leader-election-role -n rabbitmq-system-a >/dev/null
+          kubectl get role rabbitmq-cluster-leader-election-role -n rabbitmq-system-b >/dev/null
+          kubectl get rolebinding rabbitmq-cluster-leader-election-rolebinding -n rabbitmq-system-a >/dev/null
+          kubectl get rolebinding rabbitmq-cluster-leader-election-rolebinding -n rabbitmq-system-b >/dev/null
+          kubectl get serviceaccount rabbitmq-cluster-operator -n rabbitmq-system-a >/dev/null
+          kubectl get serviceaccount rabbitmq-cluster-operator -n rabbitmq-system-b >/dev/null
+          [ "$(kubectl get deploy rabbitmq-cluster-operator -n rabbitmq-system-a -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="OPERATOR_SCOPE_NAMESPACE")].value}')" = "rabbitmq-dev1,rabbitmq-dev2" ]
+          [ "$(kubectl get deploy rabbitmq-cluster-operator -n rabbitmq-system-b -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="OPERATOR_SCOPE_NAMESPACE")].value}')" = "rabbitmq-dev3,rabbitmq-dev4" ]
+      - name: Uninstall operators
+        run: |
+          helm uninstall operator-a -n rabbitmq-system-a --wait
+          helm uninstall operator-b -n rabbitmq-system-b --wait
+      - name: Assert cleanup and CRDs retained
+        run: |
+          [ "$(kubectl get clusterroles,clusterrolebindings -l app.kubernetes.io/part-of=rabbitmq --no-headers | wc -l)" -eq 0 ]
+          for ns in rabbitmq-system-a rabbitmq-system-b rabbitmq-dev1 rabbitmq-dev2 rabbitmq-dev3 rabbitmq-dev4; do
+            [ "$(kubectl get roles,rolebindings -n "$ns" -l app.kubernetes.io/part-of=rabbitmq --no-headers | wc -l)" -eq 0 ] \
+              || { echo "leftover RBAC in $ns"; exit 1; }
+          done
           kubectl get crd rabbitmqclusters.rabbitmq.com
           kubectl get crd queues.rabbitmq.com

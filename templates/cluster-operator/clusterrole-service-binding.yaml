@@ -1,3 +1,4 @@
+{{- if not (include "rabbitmqOperator.isScoped" .) }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -16,3 +17,27 @@ rules:
   - get
   - list
   - watch
+{{- else }}
+{{- range $ns := (without (splitList "," (include "rabbitmqOperator.scopeNamespaces" .)) "") }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: rabbitmq-operator
+    app.kubernetes.io/name: rabbitmq-cluster-operator
+    app.kubernetes.io/part-of: rabbitmq
+    servicebinding.io/controller: 'true'
+  name: {{ $.Release.Name }}-rabbitmq-cluster-service-binding-role
+  namespace: {{ $ns }}
+rules:
+- apiGroups:
+  - rabbitmq.com
+  resources:
+  - rabbitmqclusters
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+{{- end }}

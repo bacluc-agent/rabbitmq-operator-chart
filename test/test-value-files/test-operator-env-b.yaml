@@ -1,0 +1,3 @@
+clusterOperator:
+  env:
+    OPERATOR_SCOPE_NAMESPACE: rabbitmq-dev3,rabbitmq-dev4
