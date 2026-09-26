@@ -11,7 +11,7 @@ clusterOperator:
 rabbitmqImage:
   registry: docker.io
   repository: bitnamilegacy/rabbitmq
-  version: 3.11.26-debian-11-r0
+  version: 3.12.13-debian-11-r0
 credentialUpdaterImage:
   registry: docker.io
   repository: bitnamilegacy/rmq-default-credential-updater
