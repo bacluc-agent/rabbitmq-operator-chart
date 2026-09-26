@@ -30,10 +30,12 @@ Verify that the chart's rendered manifests still match the upstream release:
 
 The script reads `appVersion` from `Chart.yaml` and the operator image
 `registry`/`repository` from `values.yaml` to select the matching upstream
-release asset (`cluster-operator-ghcr-io.yml` for `ghcr.io`,
-`cluster-operator-quay-io.yml` for `quay.io`). It downloads that manifest,
-validates the Deployment image, renders the chart with `helm template`, strips
-`CustomResourceDefinition` resources from both sides (CRDs live in
+release asset (`cluster-operator-ghcr-io.yml` for `ghcr.io`;
+`cluster-operator-quay-io.yml` for `quay.io`, which also requires
+`repository: rabbitmqoperator/cluster-operator` in `values.yaml`). It downloads
+that manifest, validates the Deployment image, renders the chart with
+`helm template`, strips `CustomResourceDefinition` resources from both sides
+(CRDs live in
 [rabbitmq-crd-chart](https://github.com/bacluc-agent/rabbitmq-crd-chart)),
 normalizes formatting, and runs `git diff`.
 
